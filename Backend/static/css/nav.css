@@ -1,0 +1,188 @@
+/* Navbar */
+.navbar {
+    background-color: #897554; /* Dark Brown */
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    z-index: 999;
+    transition: all 0.3s ease-in-out;
+
+}
+
+.nav-container{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 80%;
+}
+
+.logo-box{
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-container .logo {
+    width: 80px;
+
+}
+
+.navbar-brand {
+    color: white;
+    font-size: 24px;
+    text-decoration: none;
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+    
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 15px;
+}
+
+.nav-links li a {
+    color: white;
+    text-decoration: none;
+    padding: 10px;
+    font-weight: bold;
+}
+
+.navbar-toggler {
+    display: block;
+    font-size: 24px;
+    color: white;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.hidden {
+  top: -100px; /* Move navbar up */
+}
+
+/* Sidebar Menu */
+.sidebar {
+  z-index: 999;
+  position: fixed;
+  top: 0;
+  right: -250px; /* Hidden by default */
+  width: 250px;
+  height: 100%;
+  background: #4C3625;
+  color: white;
+  padding-top: 60px;
+  transition: 0.4s;
+}
+
+/* Sidebar Links */
+.sidebar a {
+  display: block;
+  color: white;
+  padding: 15px;
+  text-decoration: none;
+  font-size: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  transition: 0.3s;
+}
+
+.sidebar a:hover {
+  background: #8B5A2B;
+}
+
+/* Close Button */
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 24px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: white;
+}
+
+/* Show Sidebar */
+.sidebar.active {
+  right: 0;
+}
+
+.navbar .navbar-brand {
+    font-weight: 700; /* Bold text */
+    font-size: 1.8rem; /* Adjusted size */
+    color: #E7E3D5; /* Darker shade for contrast */
+    font-family: 'Poppins', sans-serif; /* Modern, professional font */
+    text-transform:capitalize; /* Optional: Makes text uppercase */
+    text-decoration: none; /* Removes underline */
+}
+
+
+/* User Avatar and Username */
+.user-info {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.avatar-img,
+.default-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #E7E3D5;
+  cursor: pointer;
+}
+
+.username {
+  color: #E7E3D5;
+  font-size: 14px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: bold;
+  text-align: center;
+}
+
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  top: 65px;
+  right: 0;
+  background-color: #fff;
+  color: #333;
+  padding: 10px;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  min-width: 140px;
+  z-index: 1000;
+  text-align: left;
+}
+
+.dropdown-menu a {
+  display: block;
+  color: #333;
+  text-decoration: none;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.dropdown-menu a:hover {
+  color: #d9534f;
+}
+
+.navbar-toggler {
+  display: block;
+  font-size: 24px;
+  padding-left:30px ;
+  color: white;
+  background: none;
+  border: none;
+  cursor: pointer;
+}

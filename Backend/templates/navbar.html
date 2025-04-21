@@ -1,0 +1,30 @@
+<nav class="navbar" id="nav">
+    <div class="nav-container">
+        <div class="logo-box">
+            <img class="logo" src="{{ url_for('static', filename='images/main-logo.png') }}" alt="">
+            <a class="navbar-brand" href="/">HeritageHub</a>
+        </div>
+
+       <!-- ✅ Avatar with Username below it and Dropdown menu -->
+       <div class="user-info dropdown">
+            {% if logged_in_user %}
+                <!-- Logged-in user -->
+                <img src="{{ url_for('static', filename='images/avatar.png') }}" alt="User Avatar" class="avatar-img" id="avatarDropdown">
+                <div class="username">{{ logged_in_user }}</div> <!-- ✅ Always visible -->
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <a href="{{ url_for('logout') }}" class="logout-link">Logout</a>
+                </div>
+            {% else %}
+                    <!-- Guest (not logged in) -->
+                <img src="{{ url_for('static', filename='images/default_avatar.webp') }}" alt="Default Avatar" class="default-avatar" id="avatarDropdown">
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <a href="{{ url_for('login') }}" class="logout-link">Login</a>
+                </div>
+            {% endif %}
+        </div>
+        
+        
+
+        <button class="navbar-toggler" id="openMenu" onclick="toggleMenu()">☰</button>
+    </div>
+</nav>

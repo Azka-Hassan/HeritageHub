@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeritageHub Boarding Pass</title>
+    
+    <!-- Google Fonts -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #E7E3D5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            justify-content: center;
+        }
+
+        .ticket-container {
+            background: white;
+            width: 1100px;
+            height: 400px;
+            border-radius: 20px;
+            box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.2);
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Left Section */
+        .left-section {
+            width: 75%;
+            padding: 30px;
+            background: #e0cda9;
+            color: #4C3625;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .logo-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-title img {
+            width: 70px; /* Smaller Logo */
+            height: 70px;
+        }
+
+        .title-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .heritage-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .ticket-info {
+            text-align: right;
+        }
+
+        .ticket-info h4 {
+            font-size: 22px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .ticket-info h2 {
+            font-size: 50px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .scan-instruction {
+            font-size: 14px;
+            font-weight: 400;
+            color: #4C3625;
+            margin-top: 5px;
+        }
+
+        .info {
+            font-size: 18px;
+            display: flex;
+            justify-content: space-between;
+            gap: 30px;
+        }
+
+        .info p {
+            margin: 0;
+            flex: 1;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        /* Right Section */
+        .right-section {
+            width: 25%;
+            background: #4C3625;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            border-left: 5px dashed #ccc;
+        }
+
+        .right-section .logo-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .right-section img {
+            width: 50px; /* Smaller Logo */
+            height: 50px;
+        }
+
+        .heritagehub-text {
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .qr-code img {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 15px;
+            margin-top: 50px;
+        }
+
+        /* Social Icons */
+        .social-icons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .social-icons i {
+            font-size: 24px;
+            color: white;
+            transition: 0.3s;
+        }
+
+        .social-icons i:hover {
+            color: #E7E3D5;
+        }
+
+        /* Print Button */
+        .print-btn {
+    background: #4C3625;
+    color: #E7E3D5;
+    border: 2px solid #4C3625;
+    padding: 12px 25px;
+    margin-top: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.2);
+    text-transform: uppercase;
+}
+
+.print-btn:hover {
+    background: #b02736;
+    border-color: #b02736;
+    color: white;
+    transform: scale(1.05);
+    box-shadow: 3px 3px 15px rgba(0, 0, 0, 0.3);
+}
+
+    </style>
+</head>
+<body>
+    <div class="ticket-container">
+        <div class="left-section">
+            <div class="logo-title">
+                <img src="{{ url_for('static', filename='images/main-logo.png') }}" alt="Logo"> 
+                <div class="title-container">
+                    <h2 class="heritage-title">HeritageHub</h2>
+                    <p class="scan-instruction">Please have this ready on your device for scanning.</p>
+                </div>
+                <div class="ticket-info">
+                    <h4>This is your</h4>
+                    <h2>E-Ticket</h2>
+                </div>
+            </div>
+            
+            <div class="info">
+                <p><strong>👤 Name:</strong> {{ username }}</p>
+                <p><strong>🎫 Ticket Type:</strong> {{ category }}</p>
+                <p><strong>🔢 Quantity:</strong> {{ quantity }}</p>
+            </div>
+            <div class="info">
+                <p><strong>🏛 Heritage Site:</strong> {{ heritage_site }}</p>
+                <p><strong>📅 Date:</strong> {{ visit_date }} </p>
+                <p id="price-info"><strong>💰 Price:</strong> Calculating...</p>
+            </div>
+        </div>
+        <div class="right-section">
+            <div class="logo-container">
+                <img src="{{ url_for('static', filename='images/main-logo.png') }}">
+                <p class="heritagehub-text">HeritageHub</p>
+            </div>
+            <div class="qr-code">
+                <img id="qr-code" src="" alt="QR Code">
+            </div>
+            <div class="social-icons">
+                <i class="fa-brands fa-twitter"></i>
+                <i class="fa-brands fa-instagram"></i>
+                <i class="fa-solid fa-phone"></i>
+            </div>
+        </div>
+    </div>
+
+    <button class="print-btn" onclick="window.print()">🖨 Print Ticket</button>
+
+    <script>
+        function calculatePrice(heritageSite, category, quantity) {
+            let basePrices = {
+                "Hiran Minar": 500,
+                "Taxila": 700,
+                "Makli Graveyard": 600,
+                "Mohatta Palace": 800,
+                "Harappa": 750,
+                "Rohtas Fort": 900,
+                "Baltit Fort": 1000
+            };
+
+            let categoryMultipliers = {
+                "Adult": 1.0,
+                "Student": 0.7,
+                "Child": 0.5
+            };
+
+            let basePrice = basePrices[heritageSite] || 500;
+            let multiplier = categoryMultipliers[category] || 1.0;
+
+            return Math.round(basePrice * multiplier * quantity);
+        }
+
+        function generateQRCode() {
+    let username = "{{ username|safe }}"; 
+    let category = "{{ category|safe }}"; 
+    let quantity = parseInt("{{ quantity }}"); 
+    let heritageSite = "{{ heritage_site|safe }}"; 
+    let visitDate = "{{ visit_date|safe }}"; 
+
+    let totalPrice = calculatePrice(heritageSite, category, quantity);
+
+    document.getElementById("price-info").innerHTML = `<strong>💰 Price:</strong> ${totalPrice} PKR`;
+
+    let ticketData = `Name: ${username}, Ticket: ${category}, Quantity: ${quantity}, Total Price: ${totalPrice} PKR, Site: ${heritageSite}, Date: ${visitDate}`;
+    let qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(ticketData)}`;
+
+    document.getElementById('qr-code').src = qrUrl;
+}
+
+window.onload = generateQRCode;
+
+    </script>
+</body>
+</html>
