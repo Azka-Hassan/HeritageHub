@@ -24,15 +24,14 @@
 
 <body>
     <div id="nav-container"></div>
-    <!-- Sidebar -->
+    
     <div class="sidebar" id="sidebar">
         <button class="close-btn" id="closeMenu">✖</button>
         <a href="/first">Information Site</a>
         <a href="/events">Events</a>
         <a href="/ticket">Ticketing</a>
-        <a href="/shop">Ecommerce</a>
-        <a href="/visitor-analytics">View Visitor Analytics</a>
-
+        <a href="/shop">Souvenir Shop</a>
+        <a href="/analytics">Analytics</a>
         <a href="/feedback">Feedback</a>
     </div>
    
@@ -40,7 +39,11 @@
         <div class="text-container">
             <div class="hero-text">
                 <h1 class="tagline">From Ancient Footsteps <br> to Future Pathways</h1>
-                <p>Explore the rich and diverse heritage of Pakistan, from the grandeur of the Indus Valley Civilization to the architectural marvels of the Mughal era. Discover how historical sites, cultural traditions, and indigenous knowledge are being preserved through conservation efforts, digital archiving, and community-led initiatives. Uncover the role of technology, education, and sustainable tourism in safeguarding Pakistan’s legacy for future generations, ensuring that the past continues to inspire and shape the nation’s identity.</p>
+                <p>Welcome to HeritageHub, your gateway to cultural exploration. Our platform offers seamless access to historical sites, events, and immersive experiences. With secure ticketing, up-to-date information, and a curated souvenir shop, we make discovering heritage simple and enjoyable.<br><br>
+
+                    Engage with us through feedback and enjoy personalized recommendations by signing up. At HeritageHub, we celebrate the past while embracing the future. Join us in preserving history and connecting with the stories that define our world.<br><br>
+                    
+                    Explore. Experience. Preserve.</p>
             </div>
             
         </div>
@@ -76,7 +79,7 @@
                 <h5>The Fight to Save Pakistan’s Cultural Heritage</h5>
                 <p>For centuries, Pakistan has been home to a rich tradition of art and architecture. Many historic
                     buildings are being destroyed, despite resistance from conservationists.</p>
-                <a href="https://en.wikipedia.org/wiki/Culture_of_Pakistan" target="_blank" class="btn">Read More</a>
+                <a href="https://www.dawn.com/news/1875869" target="_blank" class="btn">Read More</a>
             </div>
             <div class="article-image">
                 <img src="{{ url_for('static', filename='images/mohenjo daro.jpg') }}" alt="Heritage Site">
@@ -101,7 +104,7 @@
                 <h5>Why Are So Many Historic Buildings in Pakistan Falling Apart?</h5>
                 <p>The country’s architectural heritage is under threat from neglect, poor maintenance, and climate
                     change. Efforts are being made to restore and preserve these structures.</p>
-                <a href="https://en.wikipedia.org/wiki/List_of_heritage_sites_in_Pakistan" target="_blank"
+                <a href="https://iips.com.pk/why-is-karachi-losing-its-heritage-sites/#:~:text=The%20buildings%20are%20damaged%20due,the%20interior%20of%20the%20building." target="_blank"
                     class="btn">Read More</a>
             </div>
             <div class="article-image">
@@ -112,7 +115,6 @@
 
     <footer>
         <div class="footer-container">
-          <!-- Quick Links -->
           <div class="footer-column">
             <h3>Quick Links</h3>
             <ul>
@@ -124,7 +126,6 @@
             </ul>
           </div>
   
-          <!-- Contact Us -->
           <div class="footer-column">
             <h3>Contact Us</h3>
             <p>123 Heritage Street, Karachi, Pakistan</p>
@@ -132,7 +133,7 @@
             <p>Email: info@heritagehub.com</p>
           </div>
   
-          <!-- Sign Up Section -->
+
           <div class="footer-column">
             <h3>Remain Updated</h3>
             <p>Subscribe to get the latest updates.</p>
@@ -156,16 +157,6 @@
     
     <script src="{{ url_for('static', filename='js/nav.js') }}"></script>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
-
-
-    <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const msg = urlParams.get("msg");
-        if (msg) {
-            alert(msg);
-        }
-    </script>
-    
 </body>
 
 </html>

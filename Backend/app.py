@@ -1,19 +1,22 @@
-
-from flask import Flask, render_template, send_file, url_for, request, redirect, flash, session, redirect, jsonify
+from flask import Flask, render_template, send_file, url_for, request, redirect, flash, session,redirect,jsonify
 import cx_Oracle
+from flask_session import Session
 import io
 from passlib.hash import sha256_crypt
 import os
-import requests  # Import requests module
+import json
+import requests  
 import pandas as pd
 from flask import Response
-from urllib.parse import quote
 
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = 'your_secret_keya_very_long_and_random_string'  
 
-# Database connection function
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"  
+Session(app)
+
 def get_db_connection():
     dsn = cx_Oracle.makedsn("localhost", 1521, service_name="xe") 
     return cx_Oracle.connect(user="system", password="123", dsn=dsn)
@@ -59,9 +62,9 @@ def register():
             cursor.close()
             conn.close()
 
-    return render_template('register.html')
+    return render_template('register.html')  
 
-# LOGIN FORM (Modified to Log Visits)
+# LOGIN FORM
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -82,50 +85,55 @@ def login():
             if sha256_crypt.verify(password, stored_password):
                 session["user"] = username  
                 session["user_id"] = user_id  
+                
+                print("Session User ID (After Login):", session.get("user_id"))
 
-                # ✅ Redirect to welcome page with a success message
-                return redirect(url_for('welcome', msg=quote("Login successful!")))
+                flash("Login successful!", "success")
+
+                next_page = session.pop('next', None)  
+                if next_page:
+                    return redirect(next_page)
+
             else:
-                # ❌ Wrong password
-                return redirect(url_for('login', msg=quote("Invalid username or password!")))
+                flash("Invalid username or password!", "danger")
         else:
-            # ❌ Username not found
-            return redirect(url_for('login', msg=quote("User not found!")))
+            flash("User not found!", "danger")
 
-    # For GET requests, just show the login page
     return render_template("login.html")
-
 
 
 #  HOME PAGE
 @app.route("/")
 def welcome():
-    msg = request.args.get("msg")
-    return render_template("index.html", msg=msg)
-
-
+    return render_template("index.html")
 
 # NAVBAR
 @app.route("/load_navbar")
 def load_navbar():
     return render_template("navbar.html")
 
-@app.context_processor
-def inject_user():
-    return dict(logged_in_user=session.get("user"))
-
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("welcome"))
-
-
 # INFORMATION SITE
 @app.route("/first")
 def information_site():
     return render_template("Information_Site.html")
 
+
+#EVENTS 
+@app.route("/events")
+def events_site():
+    return render_template("events.html")
+
+
+#AWARENESS
+@app.route("/awareness")
+def awareness():
+    return render_template("awareness.html")
+
+
+#ANALYTICS
+@app.route("/analytics")
+def visitor_analytics_page():
+    return render_template("visitor_analytics.html")
 
 # FEEDBACK PAGE
 @app.route("/feedback")
@@ -151,7 +159,7 @@ def submit_feedback():
         if not result:
             return jsonify({"status": "error", "message": "Username does not exist!"})
 
-        user_id = result[0]  # Extract user_id
+        user_id = result[0] 
 
         # Insert Feedback
         cursor.execute(
@@ -163,7 +171,7 @@ def submit_feedback():
         return jsonify({"status": "success", "message": "Thank you for your feedback!"})
 
     except cx_Oracle.DatabaseError as e:
-        print(f"Database Error: {e}")  # Logs error
+        print(f"Database Error: {e}")  
         return jsonify({"status": "error", "message": "A database error occurred. Please try again later."})
 
     finally:
@@ -201,6 +209,9 @@ def get_feedbacks():
     return jsonify({"status": "success", "feedbacks": feedback_list})
 
 
+
+
+
 # TICKETING
 @app.route("/ticket")
 def ticketing_page():
@@ -208,15 +219,14 @@ def ticketing_page():
 
 
 # E-TICKET
-
-@app.route('/Eticket',methods=['GET', 'POST'])
+@app.route('/Eticket', methods=['GET', 'POST'])
 def generate_ticket():
-    # Check if the user is logged in
     if 'user' not in session:
         flash("You must be logged in to generate a ticket!", "danger")
-        return redirect(url_for("login"))
+        session['next'] = url_for("generate_ticket")  
+        return redirect(url_for("login"))  
 
-    username = session["user"]  # Retrieve logged-in user's username from session
+    username = session["user"]  
 
     # Get ticket details from form
     heritage_site = request.form.get('heritageSite')
@@ -226,7 +236,7 @@ def generate_ticket():
 
     return render_template(
         'eticket.html', 
-        username=username,  # Pass username to template
+        username=username,  
         heritage_site=heritage_site, 
         category=category, 
         quantity=quantity, 
@@ -235,6 +245,222 @@ def generate_ticket():
 
 
 
+# SHOP PAGE
+@app.route("/shop")
+def shop():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM products")
+    products = cursor.fetchall()
+    cursor.close()
+    return render_template('shop.html', products=products)
+
+
+@app.route("/product_image/<int:product_id>")
+def get_product_image(product_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT image_data FROM products WHERE product_id = :id", {"id": product_id})
+    result = cursor.fetchone()
+
+    if result and result[0]:
+        image_blob = result[0].read() if hasattr(result[0], "read") else result[0]
+        cursor.close()
+        conn.close()
+        return send_file(io.BytesIO(image_blob), mimetype="image/jpeg")
+
+    cursor.close()
+    conn.close()
+    return "No image found", 404
+
+
+
+
+@app.route('/add_to_cart', methods=['POST'])
+def add_to_cart():
+    product_id = request.form.get('product_id')
+    quantity = int(request.form.get('quantity', 1))
+
+    # Connect to the database to check stock
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT stock FROM products WHERE product_id = :id", {"id": product_id})
+    stock = cursor.fetchone()
+
+    if stock is None:
+        flash("Product not found.", "danger")
+        return redirect('/shop')
+
+    stock = stock[0]  
+
+    if quantity > stock:
+        flash(f"Only {stock} available for Product ID {product_id}.", "danger")
+        return redirect('/shop')
+
+    if 'cart' not in session:
+        session['cart'] = {}
+
+    cart = session['cart']
+    if product_id in cart:
+        cart[product_id] += quantity
+    else:
+        cart[product_id] = quantity
+
+    session.modified = True
+    return redirect('/cart')
+
+
+
+
+@app.route('/cart')
+def cart():
+    if 'cart' not in session or not session['cart']:
+        return render_template('cart.html', cart_items=[], total=0, warnings=[])
+
+    if 'user' not in session:
+        flash("You need to log in to proceed to checkout.", "warning")
+        session['next'] = url_for("cart")  # Store the intended page
+        return redirect(url_for("login"))  # Redirect to login
+
+    cart = session['cart']
+    product_ids = list(cart.keys())
+
+    if not product_ids:
+        return render_template('cart.html', cart_items=[], total=0, warnings=[])
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    placeholders = ', '.join(f':{i + 1}' for i in range(len(product_ids)))
+    query = f"SELECT product_id, name, description, price, stock FROM products WHERE product_id IN ({placeholders})"
+
+    cursor.execute(query, product_ids)
+    products = cursor.fetchall()
+
+    total = 0
+    cart_items = []
+    warnings = []
+
+    for product in products:
+        product_id = str(product[0])
+        quantity = cart.get(product_id, 0)
+        price = product[3] if product[3] is not None else 0
+        stock = product[4] if product[4] is not None else 0
+
+        subtotal = quantity * price
+        total += subtotal
+
+        if stock < quantity:
+            warnings.append(f"⚠️ Only {stock} left for {product[1]}, but you have {quantity} in the cart!")
+
+        cart_items.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
+
+    cursor.close()
+    conn.close()
+
+    return render_template('cart.html', cart_items=cart_items, total=total, warnings=warnings)
+
+
+
+
+@app.route('/update_cart', methods=['POST'])
+def update_cart():
+    product_id = request.form.get('product_id')
+    action = request.form.get('action')
+
+    if 'cart' not in session or product_id not in session['cart']:
+        flash("Item not found in cart!", "danger")
+        return redirect('/cart')
+
+    if action == "increase":
+        session['cart'][product_id] += 1
+    elif action == "decrease":
+        if session['cart'][product_id] > 1:
+            session['cart'][product_id] -= 1
+        else:
+            del session['cart'][product_id]  # Remove from cart if quantity is 0
+
+    session.modified = True
+    return redirect('/cart')
+
+
+
+@app.route('/checkout', methods=['POST'])
+def checkout():
+    if 'user' not in session:  
+        flash("You must be logged in to proceed to checkout!", "danger")
+        return redirect(url_for("login", next=url_for("cart")))  
+
+    user_id = session["user_id"]  
+    total = request.form.get('total')
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    try:
+        
+        cursor.execute("INSERT INTO orders (user_id, total_amount) VALUES (:1, :2)", 
+                       (user_id, total))
+        conn.commit()  
+
+        # Get the last inserted order_id
+        cursor.execute("SELECT order_seq.CURRVAL FROM dual")
+        order_id = cursor.fetchone()[0]
+        print(f"Order ID: {order_id}")  
+
+        cart = session.get('cart', {})
+
+        for product_id, quantity in cart.items():
+            cursor.execute("SELECT price, stock FROM products WHERE product_id = :1", (product_id,))
+            product = cursor.fetchone()
+            if not product:
+                flash(f"Product ID {product_id} not found.", "danger")
+                continue
+            
+            price, stock = product
+
+            if stock >= quantity:
+                cursor.execute("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (:1, :2, :3, :4)",
+                               (order_id, product_id, quantity, price))
+                
+                # Update stock in products table
+                cursor.execute("UPDATE products SET stock = stock - :1 WHERE product_id = :2", (quantity, product_id))
+            else:
+                flash(f"Not enough stock for {product_id}. Only {stock} available.", "danger")
+                return redirect('/cart')
+
+        conn.commit()  # Commit the transaction to save changes
+        session.pop('cart', None)  # Clear cart after successful payment
+        flash("Your order has been placed successfully!", "success")
+        return redirect(url_for("cart"))  # Redirect to payment success
+
+    except cx_Oracle.DatabaseError as e:
+        print(f"Database Error: {e}")
+        flash("A database error occurred. Please try again later.", "danger")
+        return redirect('/cart')
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/mock_payment', methods=['POST'])
+def mock_payment():
+    total = request.form.get('total')
+
+    # Simulating success or failure
+    payment_status = "Success"  # Change to "Failed" to simulate failure
+
+    if payment_status == "Success":
+        return redirect(url_for('payment_success', amount=total))
+    else:
+        return redirect(url_for('payment_failed'))
+
+
+@app.route('/payment_success')
+def payment_success():
+    amount = request.args.get('amount', 0)
+    return render_template('payment_success.html', amount=amount)
 
 
 
@@ -379,7 +605,7 @@ def nine():
     result = cursor.fetchone()
 
     if result:
-        # Read CLOB data before closing the connection
+        
         overview = result[0].read() if result[0] else "No data available"
         history = result[1].read() if result[1] else "No data available"
         architecture = result[2].read() if result[2] else "No data available"
@@ -402,7 +628,7 @@ def ten():
     result = cursor.fetchone()
 
     if result:
-        # Read CLOB data before closing the connection
+       
         overview = result[0].read() if result[0] else "No data available"
         history = result[1].read() if result[1] else "No data available"
         architecture = result[2].read() if result[2] else "No data available"
@@ -424,7 +650,7 @@ def eleven():
     result = cursor.fetchone()
 
     if result:
-        # Read CLOB data before closing the connection
+     
         overview = result[0].read() if result[0] else "No data available"
         history = result[1].read() if result[1] else "No data available"
         architecture = result[2].read() if result[2] else "No data available"
@@ -446,8 +672,8 @@ def get_image():
     cursor.execute("SELECT image_data FROM media WHERE id = 3")
     result = cursor.fetchone()
 
-    if result and result[0]:  # Ensure image exists
-        image_blob = result[0].read()  # Read BLOB before closing connection
+    if result and result[0]:  
+        image_blob = result[0].read()  
     else:
         return "No image found", 404
 
@@ -467,8 +693,8 @@ def get_baltitimage():
     cursor.execute("SELECT image_data FROM media WHERE id = 9")
     result = cursor.fetchone()
 
-    if result and result[0]:  # Ensure image exists
-        image_blob = result[0].read()  # Read BLOB before closing connection
+    if result and result[0]:  
+        image_blob = result[0].read()  
     else:
         return "No image found", 404
 
@@ -486,8 +712,8 @@ def get_taxilaimage():
     cursor.execute("SELECT image_data FROM media WHERE id = 2")
     result = cursor.fetchone()
 
-    if result and result[0]:  # Ensure image exists
-        image_blob = result[0].read()  # Read BLOB before closing connection
+    if result and result[0]:  
+        image_blob = result[0].read()  
     else:
         return "No image found", 404
 
@@ -506,8 +732,8 @@ def get_makliimage():
     cursor.execute("SELECT image_data FROM media WHERE id = 4")
     result = cursor.fetchone()
 
-    if result and result[0]:  # Ensure image exists
-        image_blob = result[0].read()  # Read BLOB before closing connection
+    if result and result[0]:  
+        image_blob = result[0].read()  
     else:
         return "No image found", 404
 
@@ -524,8 +750,8 @@ def get_mohattaimage():
     cursor.execute("SELECT image_data FROM media WHERE id = 6")
     result = cursor.fetchone()
 
-    if result and result[0]:  # Ensure image exists
-        image_blob = result[0].read()  # Read BLOB before closing connection
+    if result and result[0]:  
+        image_blob = result[0].read()  
     else:
         return "No image found", 404
 
@@ -543,8 +769,8 @@ def get_rohtasimage():
     cursor.execute("SELECT image_data FROM media WHERE id = 7")
     result = cursor.fetchone()
 
-    if result and result[0]:  # Ensure image exists
-        image_blob = result[0].read()  # Read BLOB before closing connection
+    if result and result[0]:  
+        image_blob = result[0].read()  
     else:
         return "No image found", 404
 
@@ -562,8 +788,8 @@ def get_harappaimage():
     cursor.execute("SELECT image_data FROM media WHERE id = 8")
     result = cursor.fetchone()
 
-    if result and result[0]:  # Ensure image exists
-        image_blob = result[0].read()  # Read BLOB before closing connection
+    if result and result[0]:  
+        image_blob = result[0].read()  
     else:
         return "No image found", 404
 
@@ -580,8 +806,8 @@ def get_hiranimage():
     cursor.execute("SELECT image_data FROM media WHERE id = 1")
     result = cursor.fetchone()
 
-    if result and result[0]:  # Ensure image exists
-        image_blob = result[0].read()  # Read BLOB before closing connection
+    if result and result[0]:  
+        image_blob = result[0].read()  
     else:
         return "No image found", 404
 
@@ -600,8 +826,8 @@ def get_shalimarimage():
     cursor.execute("SELECT image_data FROM media WHERE id = 5")
     result = cursor.fetchone()
 
-    if result and result[0]:  # Ensure image exists
-        image_blob = result[0].read()  # Read BLOB before closing connection
+    if result and result[0]:  
+        image_blob = result[0].read()  
     else:
         return "No image found", 404
 
@@ -609,6 +835,8 @@ def get_shalimarimage():
     conn.close()
 
     return send_file(io.BytesIO(image_blob), mimetype="image/jpeg")
+
+
 
 
 
@@ -651,7 +879,7 @@ def get_visitor_analytics():
         
         analytics = [{"date": date, "count": count} for date, count in data]
 
-        return jsonify(analytics)  # Return data in JSON format
+        return jsonify(analytics)  
 
     except cx_Oracle.DatabaseError as e:
         return jsonify({"error": str(e)}), 500
@@ -744,353 +972,29 @@ def monthly_visitors():
         conn.close()
 
 
-# @app.route('/export-visitors', methods=['GET'])
-# def export_visitors():
-#     conn = get_db_connection()
-#     cursor = conn.cursor()
-
-#     # Fetch only the valid columns from visitor_logs
-#     cursor.execute("SELECT USER_ID, SITE_ID, VISIT_DATE FROM visitor_logs")
-#     data = cursor.fetchall()
-
-#     # Convert data to a DataFrame
-#     df = pd.DataFrame(data, columns=["User ID", "Site ID", "Visit Date"])
-
-#     # Convert DataFrame to an Excel file
-#     output = io.BytesIO()
-#     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-#         df.to_excel(writer, index=False, sheet_name="Visitor Data")
-
-#     output.seek(0)
-
-#     # Return Excel file as a download response
-#     return send_file(
-#         output,
-#         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-#         as_attachment=True,
-#         download_name="visitor_data.xlsx"
-#     )
-
-
-
-
-
-
-# Route to render visitor analytics page
-@app.route("/visitor-analytics")
-def visitor_analytics_page():
-    return render_template("visitor_analytics.html")
-
-
-
-#EVENTS 
-@app.route("/events")
-def events_site():
-    return render_template("events.html")
-
-
-@app.route("/shop")
-def shop():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM products")
-    products = cursor.fetchall()
-    cursor.close()
-    return render_template('shop.html', products=products)
-
-
-@app.route("/product_image/<int:product_id>")
-def get_product_image(product_id):
+@app.route('/export-visitors', methods=['GET'])
+def export_visitors():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT image_data FROM products WHERE product_id = :id", {"id": product_id})
-    result = cursor.fetchone()
-
-    if result and result[0]:
-        image_blob = result[0].read() if hasattr(result[0], "read") else result[0]
-        cursor.close()
-        conn.close()
-        return send_file(io.BytesIO(image_blob), mimetype="image/jpeg")
-
-    cursor.close()
-    conn.close()
-    return "No image found", 404
-
-
-
-# @app.route('/add_to_cart', methods=['POST'])
-# def add_to_cart():
-#     product_id = request.form.get('product_id')
-#     quantity = int(request.form.get('quantity', 1))
-
-#     if 'cart' not in session:
-#         session['cart'] = {}
-
-#     cart = session['cart']
-#     if product_id in cart:
-#         cart[product_id] += quantity
-#     else:
-#         cart[product_id] = quantity
-
-#     session.modified = True  # Ensure Flask saves session changes
-#     return redirect('/cart')
-
-
-
-@app.route('/add_to_cart', methods=['POST'])
-def add_to_cart():
-    product_id = request.form.get('product_id')
-    quantity = int(request.form.get('quantity', 1))
-
-    # Connect to the database to check stock
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT stock FROM products WHERE product_id = :id", {"id": product_id})
-    stock = cursor.fetchone()
-
-    if stock is None:
-        flash("Product not found.", "danger")
-        return redirect('/shop')
-
-    stock = stock[0]  # Get the stock value from the tuple
-
-    if quantity > stock:
-        flash(f"Only {stock} available for Product ID {product_id}.", "danger")
-        return redirect('/shop')
-
-    if 'cart' not in session:
-        session['cart'] = {}
-
-    cart = session['cart']
-    if product_id in cart:
-        cart[product_id] += quantity
-    else:
-        cart[product_id] = quantity
-
-    session.modified = True
-    return redirect('/cart')
-
-
-
-# View Cart
-# @app.route('/cart')
-# def cart():
-#     if 'cart' not in session or not session['cart']:
-#         return render_template('cart.html', cart_items=[], total=0)
-
-#     cart = session['cart']
-#     product_ids = list(cart.keys())  # Convert dict keys to a list
-
-#     if not product_ids:  # Edge case: Empty cart
-#         return render_template('cart.html', cart_items=[], total=0)
-
-#     conn = get_db_connection()
-#     cursor = conn.cursor()
-
-#     # Oracle requires explicit placeholders (:1, :2, etc.)
-#     placeholders = ', '.join(f':{i + 1}' for i in range(len(product_ids)))
-#     query = f"SELECT product_id, name, description, price, stock FROM products WHERE product_id IN ({placeholders})"
-
-#     cursor.execute(query, product_ids)  # Pass values as a list
-
-#     products = cursor.fetchall()
-
-#     total = 0
-#     cart_items = []
-#     for product in products:
-#         product_id = str(product[0])  # Assuming product_id is at index 0
-#         quantity = cart.get(product_id, 0)
-#         price = product[3] if product[3] is not None else 0  # Ensure price is not None
-
-#         subtotal = quantity * price
-#         total += subtotal
-
-#         cart_items.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
-
-#     cursor.close()
-#     conn.close()
-
-#     return render_template('cart.html', cart_items=cart_items, total=total)
-
-
-
-
-@app.route('/cart')
-def cart():
-    if 'cart' not in session or not session['cart']:
-        return render_template('cart.html', cart_items=[], total=0, warnings=[])
-
-    if 'user' not in session:
-        flash("You need to log in to proceed to checkout.", "warning")
-        session['next'] = url_for("cart")  # Store the intended page
-        return redirect(url_for("login"))  # Redirect to login
-
-    cart = session['cart']
-    product_ids = list(cart.keys())
-
-    if not product_ids:
-        return render_template('cart.html', cart_items=[], total=0, warnings=[])
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    placeholders = ', '.join(f':{i + 1}' for i in range(len(product_ids)))
-    query = f"SELECT product_id, name, description, price, stock FROM products WHERE product_id IN ({placeholders})"
-
-    cursor.execute(query, product_ids)
-    products = cursor.fetchall()
-
-    total = 0
-    cart_items = []
-    warnings = []
-
-    for product in products:
-        product_id = str(product[0])
-        quantity = cart.get(product_id, 0)
-        price = product[3] if product[3] is not None else 0
-        stock = product[4] if product[4] is not None else 0
-
-        subtotal = quantity * price
-        total += subtotal
-
-        if stock < quantity:
-            warnings.append(f"⚠️ Only {stock} left for {product[1]}, but you have {quantity} in the cart!")
-
-        cart_items.append({'product': product, 'quantity': quantity, 'subtotal': subtotal})
-
-    cursor.close()
-    conn.close()
-
-    return render_template('cart.html', cart_items=cart_items, total=total, warnings=warnings)
-
-
-
-
-
-
-@app.route('/update_cart', methods=['POST'])
-def update_cart():
-    product_id = request.form.get('product_id')
-    action = request.form.get('action')
-
-    if 'cart' not in session or product_id not in session['cart']:
-        flash("Item not found in cart!", "danger")
-        return redirect('/cart')
-
-    if action == "increase":
-        session['cart'][product_id] += 1
-    elif action == "decrease":
-        if session['cart'][product_id] > 1:
-            session['cart'][product_id] -= 1
-        else:
-            del session['cart'][product_id]  # Remove from cart if quantity is 0
-
-    session.modified = True
-    return redirect('/cart')
-
-# Checkout
-# @app.route('/checkout', methods=['POST'])
-# def checkout():
-#     if 'cart' not in session or not session['cart']:
-#         return redirect('/cart')
-
-#     user_id = 1  # Temporary user ID (replace with actual logged-in user)
-#     total = request.form.get('total')
-
-
-#     conn = get_db_connection()
-#     cursor = conn.cursor()
-#     cursor.execute("INSERT INTO orders (user_id, total_amount) VALUES (:1, :2) RETURNING order_id INTO :3", (user_id, total, cursor.var(int)))
-#     order_id = cursor.fetchone()[0]
-
-#     cart = session['cart']
-#     for product_id, quantity in cart.items():
-#         cursor.execute("SELECT price FROM products WHERE product_id = :1", (product_id,))
-#         price = cursor.fetchone()[0]
-#         cursor.execute("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (:1, :2, :3, :4)",
-#                        (order_id, product_id, quantity, price))
-
-#     conn.commit()
-#     session.pop('cart')  # Clear cart
-#     return redirect('/')
-
-
-@app.route('/checkout', methods=['POST'])
-def checkout():
-    if 'user' not in session:  
-        flash("You must be logged in to proceed to checkout!", "danger")
-        return redirect(url_for("login", next=url_for("cart")))  # Redirect to login with next parameter
-
-    user_id = session["user_id"]  # Use the actual user ID from the session
-    total = request.form.get('total')
-
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    try:
-        # Insert order
-        cursor.execute("INSERT INTO orders (user_id, total_amount) VALUES (:1, :2)", 
-                       (user_id, total))
-        conn.commit()  # Commit to get the order_id generated by the trigger
-
-        # Get the last inserted order_id
-        cursor.execute("SELECT order_seq.CURRVAL FROM dual")
-        order_id = cursor.fetchone()[0]
-        print(f"Order ID: {order_id}")  # Debugging statement
-
-        cart = session.get('cart', {})
-
-        for product_id, quantity in cart.items():
-            cursor.execute("SELECT price, stock FROM products WHERE product_id = :1", (product_id,))
-            product = cursor.fetchone()
-            if not product:
-                flash(f"Product ID {product_id} not found.", "danger")
-                continue
-            
-            price, stock = product
-
-            if stock >= quantity:
-                cursor.execute("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (:1, :2, :3, :4)",
-                               (order_id, product_id, quantity, price))
-                
-                # Update stock in products table
-                cursor.execute("UPDATE products SET stock = stock - :1 WHERE product_id = :2", (quantity, product_id))
-            else:
-                flash(f"Not enough stock for {product_id}. Only {stock} available.", "danger")
-                return redirect('/cart')
-
-        conn.commit()  # Commit the transaction to save changes
-        session.pop('cart', None)  # Clear cart after successful payment
-        flash("Your order has been placed successfully!", "success")
-        return redirect(url_for("cart"))  # Redirect to payment success
-
-    except cx_Oracle.DatabaseError as e:
-        print(f"Database Error: {e}")
-        flash("A database error occurred. Please try again later.", "danger")
-        return redirect('/cart')
-
-    finally:
-        cursor.close()
-        conn.close()
-
-@app.route('/mock_payment', methods=['POST'])
-def mock_payment():
-    total = request.form.get('total')
-
-    # Simulating success or failure
-    payment_status = "Success"  # Change to "Failed" to simulate failure
-
-    if payment_status == "Success":
-        return redirect(url_for('payment_success', amount=total))
-    else:
-        return redirect(url_for('payment_failed'))
-
-
-@app.route('/payment_success')
-def payment_success():
-    amount = request.args.get('amount', 0)
-    return render_template('payment_success.html', amount=amount)
+    
+    cursor.execute("SELECT USER_ID, SITE_ID, VISIT_DATE FROM visitor_logs")
+    data = cursor.fetchall()
+
+    df = pd.DataFrame(data, columns=["User ID", "Site ID", "Visit Date"])
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+        df.to_excel(writer, index=False, sheet_name="Visitor Data")
+
+    output.seek(0)
+
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name="visitor_data.xlsx"
+    )
 
 
 
